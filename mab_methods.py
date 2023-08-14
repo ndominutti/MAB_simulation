@@ -1,6 +1,7 @@
 import copy
 from scipy.stats import beta, bernoulli
 import numpy as np
+from collections import Counter
 
 
 class MABBaseSampler:
@@ -168,3 +169,24 @@ class BernoulliEpsilonGreedy(MABBaseSampler):
             return self.exploit()
         else:
             return self.explore()
+
+
+class BernoulliUBC(MABBaseSampler):
+    def __init__(self, K: int, priors: dict = {}):
+        super().__init__(K, priors)
+
+    def select_mab(self, step, historical_selections):
+        selection_bounds = []
+        historical_selection_counter = Counter(historical_selections)
+        for kth_mab_index in range(self.K):
+            expected_value = self.posteriors_params[kth_mab_index]["alpha"] / (
+                self.posteriors_params[kth_mab_index]["alpha"]
+                + self.posteriors_params[kth_mab_index]["beta"]
+            )
+            selection_bounds.append(
+                expected_value
+                + np.sqrt(
+                    (2 * np.log(step)) / (historical_selection_counter[kth_mab_index])
+                )
+            )
+        return np.argmax(selection_bounds)
