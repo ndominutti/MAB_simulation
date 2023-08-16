@@ -5,9 +5,8 @@ from collections import Counter
 
 
 class MABBaseSampler:
-    def __init__(self, K: int, priors: dict = {}, random_seed: int = 10):
-        """Thompson Sampling implementation for a Bernoulli problem, using beta distributions
-        as sampling distributions.
+    def __init__(self, K: int, priors: dict = {}, random_seed: int = None):
+        """Base sampler for MAB methods comparison.
 
         Args:
             K (int): slot machines amount
@@ -25,7 +24,8 @@ class MABBaseSampler:
         else:
             self.posteriors_params = priors
         self.posterior_params_tracker = [copy.deepcopy(self.posteriors_params)]
-        np.random.seed(random_seed)
+        if random_seed is not None:
+            np.random.seed(random_seed)
 
     def _sample_from_posterior(self, kth_mab_index: int) -> float:
         """Sample from the posterior of the selected slot machine
@@ -129,12 +129,17 @@ class BernoulliTompsonSampling(MABBaseSampler):
         current_sampling = []
         for k in range(self.K):
             current_sampling.append(self._sample_from_posterior(k))
-        return np.argmax(current_sampling)
+        # If there's a tie, choose at random
+        if np.all(np.array(current_sampling) == current_sampling[0]):
+            return np.random.choice(range(self.K))
+        else:
+            return np.argmax(current_sampling)
 
 
 class BernoulliEpsilonGreedy(MABBaseSampler):
     def __init__(self, K: int, epsilon: float, priors: dict = {}, decay: bool = False):
         super().__init__(K, priors)
+        # Leave epsilon as an static value for decay
         self.epsilon = copy.deepcopy(epsilon)
         self.e = copy.deepcopy(epsilon)
         self.decay = decay
@@ -189,4 +194,8 @@ class BernoulliUBC(MABBaseSampler):
                     (2 * np.log(step)) / (historical_selection_counter[kth_mab_index])
                 )
             )
-        return np.argmax(selection_bounds)
+        # If there's a tie, choose at random
+        if np.all(np.array(selection_bounds) == selection_bounds[0]):
+            return np.random.choice(range(self.K))
+        else:
+            return np.argmax(selection_bounds)
