@@ -2,9 +2,10 @@ import copy
 from scipy.stats import beta, bernoulli
 import numpy as np
 from collections import Counter
+from abc import ABC, abstractmethod
 
 
-class MABBaseSampler:
+class MABBaseSampler(ABC):
     def __init__(self, K: int, priors: dict = {}, random_seed: int = None):
         """Base sampler for MAB methods comparison.
 
@@ -27,21 +28,13 @@ class MABBaseSampler:
         if random_seed is not None:
             np.random.seed(random_seed)
 
-    def _sample_from_posterior(self, kth_mab_index: int) -> float:
-        """Sample from the posterior of the selected slot machine
+    @abstractmethod
+    def update_posterior(self):
+        pass
 
-        Args:
-            kth_mab_index (int): index of the selected slot machine to update
-            posterior
-
-        Returns:
-            float: sample of the posterior distribution
-        """
-        beta_dist = beta(
-            self.posteriors_params[kth_mab_index]["alpha"],
-            self.posteriors_params[kth_mab_index]["beta"],
-        )
-        return beta_dist.rvs(size=1)[0]
+    @abstractmethod
+    def select_mab(self):
+        pass
 
     def calculate_step_regret(
         self, actual_probabilities: list, step: int, historical_rewards: list
@@ -65,24 +58,7 @@ class MABBaseSampler:
         Returns:
             float: regret
         """
-        return step * np.max(actual_probabilities) - np.sum(historical_rewards)
-
-    def update_posterior(self, kth_mab_index: int, reward: int):
-        """Update slot machine posterior distributions.
-
-        Args:
-            kth_mab_index (int): index of the selected slot machine to update
-            posterior
-            reward (int): takes the values 0 or 1, represents if the play
-            was successful or not
-        """
-        self.posteriors_params[kth_mab_index]["alpha"] = (
-            self.posteriors_params[kth_mab_index]["alpha"] + reward
-        )
-        self.posteriors_params[kth_mab_index]["beta"] = (
-            self.posteriors_params[kth_mab_index]["beta"] + 1 - reward
-        )
-        self.posterior_params_tracker.append(copy.deepcopy(self.posteriors_params))
+        return (step + 1) * np.max(actual_probabilities) - np.sum(historical_rewards)
 
     def sample_from_real_distribution(
         self, actual_probabilities: list, kth_mab_index: int
@@ -119,7 +95,23 @@ class BernoulliTompsonSampling(MABBaseSampler):
         """
         super().__init__(K, priors)
 
-    def sample_mabs_posteriors(self) -> int:
+    def _sample_from_posterior(self, kth_mab_index: int) -> float:
+        """Sample from the posterior of the selected slot machine
+
+        Args:
+            kth_mab_index (int): index of the selected slot machine to update
+            posterior
+
+        Returns:
+            float: sample of the posterior distribution
+        """
+        beta_dist = beta(
+            self.posteriors_params[kth_mab_index]["alpha"],
+            self.posteriors_params[kth_mab_index]["beta"],
+        )
+        return beta_dist.rvs(size=1)[0]
+
+    def select_mab(self) -> int:
         """Generate a sample for the posterior distribution for each slot machine
         and returns the slot machine index with the greatest realization
 
@@ -135,33 +127,58 @@ class BernoulliTompsonSampling(MABBaseSampler):
         else:
             return np.argmax(current_sampling)
 
+    def update_posterior(self, kth_mab_index: int, reward: int):
+        """Update slot machine posterior distributions.
+
+        Args:
+            kth_mab_index (int): index of the selected slot machine to update
+            posterior
+            reward (int): takes the values 0 or 1, represents if the play
+            was successful or not
+        """
+        self.posteriors_params[kth_mab_index]["alpha"] = (
+            self.posteriors_params[kth_mab_index]["alpha"] + reward
+        )
+        self.posteriors_params[kth_mab_index]["beta"] = (
+            self.posteriors_params[kth_mab_index]["beta"] + 1 - reward
+        )
+        self.posterior_params_tracker.append(copy.deepcopy(self.posteriors_params))
+
 
 class BernoulliEpsilonGreedy(MABBaseSampler):
-    def __init__(self, K: int, epsilon: float, priors: dict = {}, decay: bool = False):
+    def __init__(
+        self,
+        K: int,
+        epsilon: float,
+        priors: dict = {},
+        decay: bool = False,
+        means: list = None,
+    ):
         super().__init__(K, priors)
         # Leave epsilon as an static value for decay
         self.epsilon = copy.deepcopy(epsilon)
         self.e = copy.deepcopy(epsilon)
         self.decay = decay
+        if means is None:
+            self.means = np.zeros([1, K])
+        else:
+            self.means = means
 
     def explore(self):
         return np.random.choice(range(self.K))
 
     def exploit(self):
-        expected_values = []
-        for kth_mab_index in range(self.K):
-            expected_values.append(
-                self.posteriors_params[kth_mab_index]["alpha"]
-                / (
-                    self.posteriors_params[kth_mab_index]["alpha"]
-                    + self.posteriors_params[kth_mab_index]["beta"]
-                )
-            )
         # If there's a tie, choose at random
-        if np.all(np.array(expected_values) == expected_values[0]):
-            return np.random.choice(expected_values)
+        if np.all(np.array(self.means) == self.means[0]):
+            return self.explore()
         else:
-            return np.argmax(expected_values)
+            return np.argmax(self.means)
+
+    def update_posterior(self, kth_mab_index: int, step: int, reward: int):
+        """ """
+        self.means[0, kth_mab_index] = (
+            self.means[0, kth_mab_index] * step + reward
+        ) / (step + 1)
 
     def select_mab(self, step: int = None):
         p = bernoulli(self.e)
@@ -176,20 +193,20 @@ class BernoulliEpsilonGreedy(MABBaseSampler):
             return self.explore()
 
 
-class BernoulliUBC(MABBaseSampler):
-    def __init__(self, K: int, priors: dict = {}):
+class BernoulliUCB(MABBaseSampler):
+    def __init__(self, K: int, priors: dict = {}, means: list = None):
         super().__init__(K, priors)
+        if means is None:
+            self.means = np.zeros([1, K])
+        else:
+            self.means = means
 
     def select_mab(self, step, historical_selections):
         selection_bounds = []
         historical_selection_counter = Counter(historical_selections)
         for kth_mab_index in range(self.K):
-            expected_value = self.posteriors_params[kth_mab_index]["alpha"] / (
-                self.posteriors_params[kth_mab_index]["alpha"]
-                + self.posteriors_params[kth_mab_index]["beta"]
-            )
             selection_bounds.append(
-                expected_value
+                self.means[0, kth_mab_index]
                 + np.sqrt(
                     (2 * np.log(step)) / (historical_selection_counter[kth_mab_index])
                 )
@@ -199,3 +216,9 @@ class BernoulliUBC(MABBaseSampler):
             return np.random.choice(range(self.K))
         else:
             return np.argmax(selection_bounds)
+
+    def update_posterior(self, kth_mab_index: int, step: int, reward: int):
+        """ """
+        self.means[0, kth_mab_index] = (
+            self.means[0, kth_mab_index] * step + reward
+        ) / (step + 1)
