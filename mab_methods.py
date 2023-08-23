@@ -169,7 +169,7 @@ class BernoulliEpsilonGreedy(MABBaseSampler):
 
     def exploit(self):
         # If there's a tie, choose at random
-        if np.all(np.array(self.means) == self.means[0]):
+        if np.all(np.array(self.means) == self.means[0][0]):
             return self.explore()
         else:
             return np.argmax(self.means)
@@ -181,13 +181,13 @@ class BernoulliEpsilonGreedy(MABBaseSampler):
         ) / (step + 1)
 
     def select_mab(self, step: int = None):
-        p = bernoulli(self.e).rvs(size=1)[0]
+        bern = bernoulli(self.e)
         if self.decay:
             assert (
                 step is not None
             ), "If you want the epsilon to decay, you must pass the actual iteration step"
             self.e = self.epsilon / step
-        if p == 0:
+        if bern.rvs(size=1)[0] == 0:
             return self.exploit()
         else:
             return self.explore()
