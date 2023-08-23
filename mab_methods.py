@@ -181,7 +181,7 @@ class BernoulliEpsilonGreedy(MABBaseSampler):
         ) / (step + 1)
 
     def select_mab(self, step: int = None):
-        p = bernoulli(self.e)
+        p = bernoulli(self.e).rvs(size=1)[0]
         if self.decay:
             assert (
                 step is not None
