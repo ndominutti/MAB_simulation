@@ -80,7 +80,7 @@ class MABBaseSampler(ABC):
         return bernoulli(actual_probabilities[kth_mab_index]).rvs(size=1)[0]
 
 
-class BernoulliTompsonSampling(MABBaseSampler):
+class BernoulliThompsonSampling(MABBaseSampler):
     def __init__(self, K: int, priors: dict = {}):
         """Thompson Sampling implementation for a Bernoulli problem, using beta distributions
         as sampling distributions.
