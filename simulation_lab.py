@@ -17,7 +17,7 @@ class SimulationLab:
         repetitions: int,
         iterations: int,
         epsilon: float,
-        random_seed: int = 42,
+        random_seed: int = 13,
     ):
         """Simulation environment for the usage of MAB sampling methods.
 
@@ -27,7 +27,7 @@ class SimulationLab:
             repetitions (int): amount of repetitions of iteration trials
             iterations (int): amount of steps in a single repetition
             epsilon (float): epsilon argument for epsilon-greedy algorithm
-            random_seed (int, optional): seed for reproducibility. Defaults to 42.
+            random_seed (int, optional): seed for reproducibility. Defaults to 13.
         """
         self.K = len(actual_probs)
         self.actual_probs = actual_probs
@@ -85,7 +85,7 @@ class SimulationLab:
                 TSMABselection.append(TSmab_selection)
                 eGTmab_selection = eGT.select_mab(i + 1)
                 eGTMABselection.append(eGTmab_selection)
-                eGFmab_selection = eGF.select_mab(i + 1)
+                eGFmab_selection = eGF.select_mab()
                 eGFMABselection.append(eGFmab_selection)
                 UCBmab_selection = UCB.select_mab(i + 1, UCBMABselection)
                 UCBMABselection.append(UCBmab_selection)
@@ -114,7 +114,7 @@ class SimulationLab:
                 eGF.update_posterior(eGFmab_selection, i, eGFreward)
                 eGFHistorical.append(eGFreward)
                 eGFRegret.append(
-                    eGT.calculate_step_regret(self.actual_probs, i, eGFHistorical)
+                    eGF.calculate_step_regret(self.actual_probs, i, eGFHistorical)
                 )
                 UCB.update_posterior(UCBmab_selection, i, UCBreward)
                 UCBHistorical.append(UCBreward)
@@ -211,109 +211,6 @@ class SimulationLab:
             self.count_df["accumulated_selection"] / self.repetitions
         )
 
-    def _sub_linnearity_eval(self):
-        """ """
-        UCBRegret = self.UCBGlobalRegret.mean(axis=0)
-        eGTRegret = self.eGTGlobalRegret.mean(axis=0)
-        eGFRegret = self.eGFGlobalRegret.mean(axis=0)
-        TSRegret = self.TSGlobalRegret.mean(axis=0)
-
-        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(18, 12))
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(TSRegret) / range(1, self.iterations + 1),
-            label="TS",
-            color="darkblue",
-            alpha=0.7,
-            ax=axes[0],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(UCBRegret) / range(1, self.iterations + 1),
-            label="UCB",
-            color="purple",
-            alpha=0.7,
-            ax=axes[0],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(eGTRegret) / range(1, self.iterations + 1),
-            label="epsilon-greedy (con WD)",
-            color="red",
-            alpha=0.7,
-            ax=axes[0],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(eGFRegret) / range(1, self.iterations + 1),
-            label="epsilon-greedy (sin WD)",
-            color="green",
-            alpha=0.7,
-            ax=axes[0],
-        )
-        axes[0].legend()
-        axes[0].axhline(y=0, xmin=0, xmax=2000, color="black", ls="--", alpha=0.3)
-        axes[0].set_title("Convergencia de Regret(n)/n")
-
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(TSRegret) / range(1, self.iterations + 1),
-            label="TS",
-            color="darkblue",
-            alpha=0.7,
-            ax=axes[1],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(UCBRegret) / range(1, self.iterations + 1),
-            label="UCB",
-            color="purple",
-            alpha=0.7,
-            ax=axes[1],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(eGTRegret) / range(1, self.iterations + 1),
-            label="epsilon-greedy (con WD)",
-            color="red",
-            alpha=0.7,
-            ax=axes[1],
-        )
-        sns.lineplot(
-            x=range(1, self.iterations + 1),
-            y=np.array(eGFRegret) / range(1, self.iterations + 1),
-            label="epsilon-greedy (sin WD)",
-            color="green",
-            alpha=0.7,
-            ax=axes[1],
-        )
-        axes[1].legend()
-        axes[1].axhline(y=0, xmin=0, xmax=2000, color="black", ls="--", alpha=0.3)
-        axes[1].set_title("Convergencia de Regret(n)/n en detalle")
-        axes[1].set_xlim((self.iterations * 0.5, self.iterations))
-        axes[1].set_ylim((-0.1, 0.1))
-
-        plt.figure(figsize=(18, 6))
-        sns.lineplot(x=np.sqrt(range(self.iterations)), y=TSRegret, label="TS")
-        sns.lineplot(
-            x=np.sqrt(range(self.iterations)), y=eGTRegret, label="EG (con WD)"
-        )
-        sns.lineplot(
-            x=np.sqrt(range(self.iterations)), y=eGFRegret, label="EG (sin WD)"
-        )
-        sns.lineplot(x=np.sqrt(range(self.iterations)), y=UCBRegret, label="UCB")
-        plt.plot(
-            np.sqrt(range(self.iterations)),
-            np.sqrt(range(self.iterations)),
-            label="45°",
-            color="black",
-            ls="--",
-        )
-        plt.ylabel("Rn")
-        plt.xlabel("sqrt(n)")
-        plt.title("Comparación velocidad de crecimiento regret vs sqrt(n)")
-        plt.legend()
-
     def simulate(self):
         """ """
         print("Starting simulation...")
@@ -324,7 +221,7 @@ class SimulationLab:
         self._machine_selection_evolution()
         print("Success!")
 
-    def plot(self):
+    def plot_mab_selection(self):
         """ """
         fig = px.bar(
             self.count_df[self.count_df.iteration % 10 == 0],
@@ -340,5 +237,120 @@ class SimulationLab:
         )
         fig.update_layout(yaxis_range=[0, self.iterations])
         fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 0.01
-        fig.show()
-        self._sub_linnearity_eval()
+        return fig
+
+    def plot_regret(self):
+        """_summary_"""
+        self.UCBRegret = self.UCBGlobalRegret.mean(axis=0)
+        self.eGTRegret = self.eGTGlobalRegret.mean(axis=0)
+        self.eGFRegret = self.eGFGlobalRegret.mean(axis=0)
+        self.TSRegret = self.TSGlobalRegret.mean(axis=0)
+
+        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(18, 12))
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.TSRegret) / range(1, self.iterations + 1),
+            label="TS",
+            color="darkblue",
+            alpha=0.7,
+            ax=axes[0],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.UCBRegret) / range(1, self.iterations + 1),
+            label="UCB",
+            color="purple",
+            alpha=0.7,
+            ax=axes[0],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.eGTRegret) / range(1, self.iterations + 1),
+            label="epsilon-greedy (con epsilon-decay)",
+            color="red",
+            alpha=0.7,
+            ax=axes[0],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.eGFRegret) / range(1, self.iterations + 1),
+            label="epsilon-greedy (sin epsilon-decay)",
+            color="green",
+            alpha=0.7,
+            ax=axes[0],
+        )
+        axes[0].legend()
+        axes[0].axhline(y=0, xmin=0, xmax=2000, color="black", ls="--", alpha=0.3)
+        axes[0].set_title("Convergencia de Regret(n)/n")
+
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.TSRegret) / range(1, self.iterations + 1),
+            label="TS",
+            color="darkblue",
+            alpha=0.7,
+            ax=axes[1],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.UCBRegret) / range(1, self.iterations + 1),
+            label="UCB",
+            color="purple",
+            alpha=0.7,
+            ax=axes[1],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.eGTRegret) / range(1, self.iterations + 1),
+            label="epsilon-greedy (con epsilon-decay)",
+            color="red",
+            alpha=0.7,
+            ax=axes[1],
+        )
+        sns.lineplot(
+            x=range(1, self.iterations + 1),
+            y=np.array(self.eGFRegret) / range(1, self.iterations + 1),
+            label="epsilon-greedy (sin epsilon-decay)",
+            color="green",
+            alpha=0.7,
+            ax=axes[1],
+        )
+        axes[1].legend()
+        axes[1].axhline(y=0, xmin=0, xmax=2000, color="black", ls="--", alpha=0.3)
+        axes[1].set_title("Convergencia de Regret(n)/n (zoom in)")
+        axes[1].set_xlim((self.iterations * 0.5, self.iterations))
+        axes[1].set_ylim((-0.02, 0.1))
+
+    def plot_log_comparison(self):
+        """_summary_"""
+        plt.figure(figsize=(18, 6))
+        sns.lineplot(x=np.sqrt(range(self.iterations)), y=self.TSRegret, label="TS")
+        sns.lineplot(
+            x=np.sqrt(range(self.iterations)),
+            y=self.eGTRegret,
+            label="EG (con epsilon-decay)",
+            color="red",
+        )
+        sns.lineplot(
+            x=np.sqrt(range(self.iterations)),
+            y=self.eGFRegret,
+            label="EG (sin epsilon-decay)",
+            color="green",
+        )
+        sns.lineplot(
+            x=np.sqrt(range(self.iterations)),
+            y=self.UCBRegret,
+            label="UCB",
+            color="purple",
+        )
+        plt.plot(
+            np.sqrt(range(self.iterations)),
+            np.sqrt(range(self.iterations)),
+            label="45°",
+            color="black",
+            ls="--",
+        )
+        plt.ylabel("Rn")
+        plt.xlabel("sqrt(n)")
+        plt.title("Comparación velocidad de crecimiento regret vs sqrt(n)")
+        plt.legend()
