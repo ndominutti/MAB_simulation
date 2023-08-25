@@ -18,4 +18,4 @@ In this simulation, we explore and compare the performance of different strategi
    > cd MAB_simulation
 
 ## Results
-Simulation's results are stored in MAB_simulation.ipynb, but as github does not render interactive plotly charts correctly, we recommend to use this <a link='https://chart-studio.plotly.com/~NDOMINUTTI/89.embed'>link</a> instead.
+Simulation's results are stored in MAB_simulation.ipynb, but as github does not render interactive plotly charts correctly, we recommend to use this [link](https://chart-studio.plotly.com/~NDOMINUTTI/89.embed) instead.
