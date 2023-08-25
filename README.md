@@ -11,11 +11,11 @@ In this simulation, we explore and compare the performance of different strategi
 3. **Thompson Sampling**: A probabilistic algorithm that maintains a distribution for each arm's expected reward and samples from these distributions to decide which arm to pull.
 
 
-## Installation
+## Initialization
 
 1. Clone this repository:
-   git clone https://github.com/ndominutti/mab_simulation.git
-   cd your-repo
+   > git clone https://github.com/ndominutti/MAB_simulation.git<br>
+   > cd MAB_simulation
 
 ## Results
 Simulation's results are stored in MAB_simulation.ipynb, but as github does not render interactive plotly charts correctly, we recommend to use this <a link='https://chart-studio.plotly.com/~NDOMINUTTI/89.embed'>link</a> instead.
